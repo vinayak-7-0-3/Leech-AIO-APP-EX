@@ -16,6 +16,8 @@ on:
         required: true
         default: 'linux/amd64,linux/arm64'
         type: string
+  push:
+    branches: [ docker ]
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -36,6 +38,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         
+      - name: Set build variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "platforms=${{ github.event.inputs.platforms }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            echo "platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+          fi
+          
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -61,7 +74,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ github.event.inputs.tag }}
+            type=raw,value=${{ steps.vars.outputs.tag }}
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix={{branch}}-
             
@@ -72,7 +85,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: ${{ github.event.inputs.platforms }}
+          platforms: ${{ steps.vars.outputs.platforms }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
