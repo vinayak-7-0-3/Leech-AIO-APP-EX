@@ -1,31 +1,16 @@
 FROM node:lts-alpine AS builder
-
 WORKDIR /metube
-
 RUN apk add git && \
     git clone https://github.com/alexta69/metube && \
     mv ./metube/ui/* ./ && \
     npm ci && \
     node_modules/.bin/ng build --configuration production
 
-
-FROM caddy:2.10.0-builder AS builder-caddy
-
-RUN xcaddy build \
-  --with github.com/caddy-dns/cloudflare@35fb8474f57d7476329f75d63eebafb95a93022f
-
-
 FROM python:3.13-alpine AS dist
-
 COPY ./content /workdir/
-
 WORKDIR /app
-
 ENV GLOBAL_USER=admin
 ENV GLOBAL_PASSWORD=password
-ENV CADDY_DOMAIN=http://localhost
-ENV CADDY_EMAIL=internal
-ENV CADDY_WEB_PORT=8080
 ENV GLOBAL_LANGUAGE=en
 ENV GLOBAL_PORTAL_PATH=/portal
 ENV PATH="/root/.local/bin:$PATH"
@@ -66,8 +51,5 @@ RUN apk add --no-cache --update curl jq ffmpeg runit tzdata fuse3 p7zip bash fin
 
 COPY --from=builder /metube/dist/metube /app/ui/dist/metube
 
-COPY --from=builder-caddy /usr/bin/caddy /usr/bin/caddy
-
 VOLUME /mnt/data
-
 ENTRYPOINT ["sh","-c","/workdir/entrypoint.sh"]
